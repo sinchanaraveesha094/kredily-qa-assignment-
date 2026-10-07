@@ -1,0 +1,291 @@
+{
+  "info": {
+    "name": "Kredily HRMS API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "PLACEHOLDER ENDPOINTS: capture the real ones from the APK traffic (Postman proxy / mitmproxy / Charles) and update base_url + paths."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://REPLACE_WITH_KREDILY_API_HOST"
+    },
+    {
+      "key": "email",
+      "value": "peoplekredily1@yopmail.com"
+    },
+    {
+      "key": "password",
+      "value": "Pass@9865"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Login - valid (positive)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('responds < 3s', () => pm.expect(pm.response.responseTime).to.be.below(3000));",
+              "const j = pm.response.json();",
+              "const t = j.token || (j.data && j.data.token) || j.access_token;",
+              "pm.test('token returned', () => pm.expect(t).to.be.a('string').and.not.empty);",
+              "if (t) pm.collectionVariables.set('token', t);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login - wrong password (negative)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"WrongPass@123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('rejected with 4xx', () => pm.expect(pm.response.code).to.be.within(400,422));",
+              "pm.test('no token leaked', () => pm.expect(pm.response.text()).to.not.match(/token/i));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login - missing password (negative)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('validation error 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400,422]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login - SQL injection payload (negative)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"' OR 1=1 --\",\n  \"password\": \"' OR 1=1 --\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('not authenticated', () => pm.expect(pm.response.code).to.be.within(400,422));",
+              "pm.test('no 5xx', () => pm.expect(pm.response.code).to.be.below(500));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get profile - valid token (positive)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/profile",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "profile"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('JSON body', () => pm.response.to.be.json);",
+              "pm.test('email matches user', () => pm.expect(pm.response.text().toLowerCase()).to.include(pm.collectionVariables.get('email').toLowerCase()));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get profile - no token (negative)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/profile",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "profile"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401/403 without token', () => pm.expect(pm.response.code).to.be.oneOf([401,403]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get profile - tampered token (negative)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer invalid.token.value"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/profile",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "profile"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401/403 with bad token', () => pm.expect(pm.response.code).to.be.oneOf([401,403]));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
